@@ -121,6 +121,14 @@ xlabel("Tid [ms]")
 ylabel("Offset [m]")
 colormap gray;
 
+%% til filtrert seismogram1
+figure('Name', "Filter2")
+imagesc(offset1, t*1000, db(Filter1))
+xlabel("Tid [ms]")
+ylabel("Offset [m]")
+colormap gray;
+
+
 %% Oppgave 3a
 N = 300;
 fs = 1/(t(2)-t(1))
@@ -138,7 +146,8 @@ ylabel("Utslag")
 offset1(1, 30)
 
 %% Oppgave 3b
-
+N = 300;
+fs = 250;
 Slice1 = Filter1(20:150,30);
 W = tukeywin(length(Slice1), 0.25);
 FSS = (W.*Slice1);
@@ -172,16 +181,24 @@ plot(t, Ntrase)
 
 
 %% Oppgave 4b
-t_omega = 0.624;
-t2 = t_omega*2;
-t3 = t_omega*3;
+%Identifiserer t_omega visuelt med plottet i 4a, mellom de to første
+%toppene.
+t_omega = (1.496 - 0.74); %t_omega2 - t_omega1
+t2_omega = (3.16 - 2.432);
 Ntrase = Filter1(:,1);
-plot(t, Ntrase)
-
-for i=1:4
-    hold on
-    plot(t_omega*i, 0, 'redX')
+plot(t, Ntrase, 'black')
+hold on
+plot(t_omega, 0, 'redX')
+plot((2.436), 0, 'blueX')
+for i=2:4
+    plot(t_omega*i, 0, 'redO')
 end
+
+for j=1:2
+    plot((t2_omega*j + 2.436), 0, 'blueO')
+end
+
+
 
 
 %% Oppgave 5
@@ -196,27 +213,91 @@ off2 = offset1(1, 50)
 
 % Hentet hastigheter grafisk ved å se på toppene til toppene i plottet.
 Hastighet = (off2 - off1)/(0.476 - 0.340)
+%Hastighet = 1470 m/s
 
 %% Oppgave 6a
+
+
+
+%
+t_d = t;
+[u,v] = size(t);
+
+VNMO_array = t./t;
+VNMO_array = VNMO_array.*Hastighet;
+
 dt = 1/fs;
-Seis2 = nmocorrection2(t, dt, offset1, Filter1, Hastighet);
+Seis2 = nmocorrection2(t, dt, offset1, Filter1, VNMO_array);
 %reflecttimes = sqrt(t.^2 + offset1.^2./Hastighet.^2);
 %reflecttimes = reflecttimes.*(reflecttimes >= dt & reflecttimes <= t(end)-dt);
-imagesc(Seis2)
+imagesc(offset1, t*1000, Seis2)
 colormap gray;
 
 %% Oppgave 6b
-%Observer at 'skyggene' er rette her, som er refleksjonene fra et
-%sedimentlag
-THastighet = 2500
-dt = 1/fs;
-Seis2 = nmocorrection2(t, dt, offset1, Filter1, THastighet);
+
+[u,v] = size(t);
+Sp1 = Hastighet;
+Sp2 = 2500;
+VNMO_array = zeros(1, u);
+VNMO_array(1:u*0.5) = Sp1;
+VNMO_array(u*0.5:u) = Sp2;
+hbedre = 1/50*ones(1, 50);
+VNMO_dyn = konvin3190(VNMO_array, hbedre, 0);
+
+
+Seis2 = nmocorrection2(t, dt, offset1, Filter1, VNMO_array');
+Seis3 = nmocorrection2(t, dt, offset1, Filter1, VNMO_dyn');
 %reflecttimes = sqrt(t.^2 + offset1.^2./Hastighet.^2);
 %reflecttimes = reflecttimes.*(reflecttimes >= dt & reflecttimes <= t(end)-dt);
-imagesc(Seis2)
+figure('name', 'uten filter')
+imagesc(offset1, t*1000, Seis2)
+colormap gray;
+figure('name', 'med filter')
+imagesc(offset1, t*1000, Seis3)
 colormap gray;
 
-%% Oppgave 7
+%% 7a sediment-hastighet.
+%verdier hentet visuelt fra plottet under oppgave 2c. Se figur i
+%innlevering til 7a.
+y1 = 1524;
+y2 = 1652;
+x1 = 2330;
+x2 = 2680
+hastighet2 = (x2-x1)/(y2-y1)
+
+%% 7c
+%konstruksjon av Filtrert seismogram
+[p,l] = size(seismogram2);
+
+SFilter1 = zeros(p,l);
 
 
+for i=1:l
+    SFilter1(:,i) = konvin3190(seismogram2(:,i),h1,0);
+end
 
+figure('Name', "Seismogram2 Filter1")
+imagesc(offset2, t*1000, SFilter1)
+xlabel("Tid [ms]")
+ylabel("Offset [m]")
+colormap gray;
+
+figure('Name', "Seismogram2 Filter1 db")
+imagesc(offset2, t*1000, db(SFilter1))
+xlabel("Tid [ms]")
+ylabel("Offset [m]")
+colormap gray;
+
+%% Oppgave 7d
+
+%Bruker trigonometri og løser for rettvinklet trekant, hvor den minste
+%siden er offset1[1] lengde, med den andre lengden basert på hastighet i
+%vannet og hastighet i sedimentærlaget
+
+LS1 = Hastighet*(0.818-0.112) %Refleksjon1 - direkte ankomst
+
+LSediment1 = sqrt((LS1/2)^2 - 50^2)
+
+LS2 = Hastighet*(2.464-0.112) %Refleksjon2 - direkte ankomst
+
+LSediment2 = sqrt((LS2/2)^2 - 50^2)
